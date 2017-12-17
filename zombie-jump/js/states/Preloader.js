@@ -10,6 +10,7 @@ export class Preloader extends Phaser.State {
 
     preload() {
         this.game.load.image('back', 'assets/back.png');
+        this.load.audio('sound', 'assets/audio/sound1.mp3');
         this.game.load.image('ground', 'assets/platform.png');
         this.game.load.image('brain', 'assets/brain.png');
         this.game.load.image('ground-bottom', 'assets/platform_underground.png');
