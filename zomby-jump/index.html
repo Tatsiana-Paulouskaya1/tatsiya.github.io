@@ -23,6 +23,8 @@ var game = new Phaser.Game(800, window.innerHeight, Phaser.AUTO, "", { preload: 
 var introText;
 var brain;
 var playerLastTopPosition;
+var isMusicStarted = false;
+
 
 function preload() {
     game.load.image('back', 'assets/back.png');
@@ -31,6 +33,11 @@ function preload() {
     game.load.image('ground-bottom', 'assets/platform_underground.png');
     game.load.spritesheet('dude', 'assets/zomb.png', 46, 83);
     game.load.spritesheet('spider', 'assets/spider.png', 80, 43);
+    game.load.spritesheet('knight', 'assets/knight.png', 103, 90);
+    game.load.audio('jump', 'assets/audio/jump1.mp3');
+    game.load.audio('bom', 'assets/audio/bom.mp3');
+    game.load.audio('sound', 'assets/audio/sound1.mp3');
+    game.load.audio('win', 'assets/audio/final1.mp3');
 }
  
 
@@ -81,18 +88,37 @@ function create() {
         spider.animations.add('run', [0, 1, 2, 3, 4]);
         spider.animations.play('run', 10, true, false);  
     }
- 
+
+    warriors = game.add.group();
+    knight = warriors.create(200, 6050, 'knight');
+    knight.enableBody = true;
+    game.physics.arcade.enable(knight); 
+    knight.animations.add('walkRight', [24, 25, 26, 27, 28]);
+    knight.animations.play('walkRight', 6, true, false); 
+    knight = warriors.create(600, 5960, 'knight');
+    knight.enableBody = true;
+    game.physics.arcade.enable(knight);
+    knight.animations.add('walkLeft', [10, 9, 8, 7, 6]);
+    knight.animations.play('walkLeft', 6, true, false); 
+
+    jump = game.add.audio('jump');
+    bom = game.add.audio('bom');
+    sound = game.add.audio('sound');
+    win = game.add.audio('win');
+    sound.play();
 }
 
 function update() {
     var isCollission= game.physics.arcade.collide(player, platforms, killer, collisionHandler);
     var spiderCollision = game.physics.arcade.collide(player, spiders);
+    var warriorCollision = game.physics.arcade.collide(player, warriors);
 
     cursors = game.input.keyboard.createCursorKeys();
     player.body.velocity.x = 0;
   
     if (player.body.touching.down && isCollission){
         player.body.velocity.y = -700;
+        jump.play();
     }
 
     if (cursors.left.isDown){
@@ -105,14 +131,16 @@ function update() {
         player.frame = 1;
     }
 
-    if(spiderCollision||player.body.bottom === game.world.height) {
+    if(spiderCollision||player.body.bottom === game.world.height||warriorCollision) {
+        if(spiderCollision||warriorCollision) {
+            bom.play();
+        }
         player.kill();
         gameOver();
+        
     }
 
-    if(player.body.y <= 500) {
-        gameWin();
-    }
+  
    
     spiders.setAll('x', 0, true, true, 5);
     spiders.forEach(runSpider);
@@ -124,6 +152,28 @@ function update() {
 
     if (playerLastTopPosition - player.body.y < -400) {
         gameOver();
+    }
+    warriors.forEach(walkKnight);
+
+      if(player.body.y <= 500) {
+        gameWin();
+    }
+}
+
+function walkKnight(knight) {
+    
+  
+    if(knight.animations.currentAnim.name === 'walkLeft') {
+        knight.body.x -=  1.5;
+         if(knight.body.x < 0) {
+             knight.body.x =  game.world.width;
+        }
+    } else {
+        knight.body.x +=  1.5;
+        if(knight.body.x > game.world.width) {
+           
+             knight.body.x = -knight.body.width;
+        }
     }
 }
 
@@ -150,13 +200,21 @@ function killer(player, ledge) {
 }
 
 function gameWin() {
+    sound.stop();
+    
     player.body.gravity.y = 0;
+
+    if (!isMusicStarted) {
+        win.play();
+        isMusicStarted = true;
+    }
     player.body.velocity.x = 380 - player.body.x;
     player.body.velocity.y = 201 - player.body.y;
     introText = game.add.text(game.world.centerX, game.camera.y + 450, 'Congratulations! \n You won!', { font: "40px Arial", fill: "#ffffff", align: "center" });
     introText.anchor.setTo(0.5, 0.5);
     this.game.camera.follow(null);
     game.physics.arcade.overlap(player, brain, onBrainOverlap);
+    game.lockRender = true;
 }
 
 function onBrainOverlap(player, brain) {
@@ -166,12 +224,13 @@ function onBrainOverlap(player, brain) {
 }
 
 function gameOver() {
+    sound.stop();
     introText = game.add.text(game.world.centerX, game.camera.y + 450, 'Game Over! \n -click to restart-', { font: "40px Arial", fill: "#ffffff", align: "center" });
     introText.anchor.setTo(0.5, 0.5);
     this.game.camera.follow(null);
-    // this.game.state.remove(this.game.state.current);
     game.input.onTap.addOnce(restart,this);
     removeCharacters();
+    
 }
 
 function restart() {
